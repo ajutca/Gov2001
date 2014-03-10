@@ -14,5 +14,3 @@ setwd("C:/Users/ajutca/Documents/HKS/Gov2001")
 library(foreign)
 mydata <- read.dta("C:/Users/ajutca/Documents/HKS/Gov2001/Replication/maindata.dta")
 # AP - you'll need to change mydata and setwd
-
-# begin summary stats replication
