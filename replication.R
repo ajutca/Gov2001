@@ -14,3 +14,12 @@ setwd("C:/Users/ajutca/Documents/HKS/Gov2001")
 library(foreign)
 mydata <- read.dta("C:/Users/ajutca/Documents/HKS/Gov2001/Replication/maindata.dta")
 # AP - you'll need to change mydata and setwd
+
+colnames(mydata, do.NULL = TRUE) #So we can call columns by name
+
+
+##############################
+##Summary Statistics##########
+##############################
+
+mean(mydata[mydata$a_age>=16 & mydata$a_age<=22 & mydata$year<1997,c("insured","pubhi","privhi", "pub_ng", "privonly", "group","nongroup")])
