@@ -51,3 +51,15 @@ colMeans(subset(mydata.group, select = c("insured", "pubhi","privhi","pub_ng", "
 ##Non-group coverage
 mydata.nongroup<-subset(mydata,mydata$year<1997 & mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & grouphi_any==0)
 colMeans(subset(mydata.nongroup, select = c("insured", "pubhi","privhi","pub_ng", "privonly", "group", "nongroup")), na.rm = TRUE)
+
+################################
+##Table 3 of the paper##########
+################################
+
+####Full Sample
+
+##Any insurance
+
+##Public insurance
+
+##Private insurance
