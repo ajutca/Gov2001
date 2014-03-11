@@ -56,88 +56,125 @@ colMeans(subset(mydata.nongroup, select = c("insured", "pubhi","privhi","pub_ng"
 ##Table 3 of the paper##########
 ################################
 
+
+##First, code clustered s.e.'s
+#######################
+###Clustered S.E.'s###
+#######################
+
+cl   <- function(dat,fm, cluster){
+  require(sandwich, quietly = TRUE)
+  require(lmtest, quietly = TRUE)
+  M <- length(unique(cluster))
+  N <- length(cluster)
+  K <- fm$rank
+  dfc <- (M/(M-1))*((N-1)/(N-K))
+  uj  <- apply(estfun(fm),2, function(x) tapply(x, cluster, sum));
+  vcovCL <- dfc*sandwich(fm, meat=crossprod(uj)/N)
+  coeftest(fm, vcovCL) }
+require(foreign)
+
+########################
+####Regressions#########
+########################
+
 ####Full Sample 
+
+full.sub<-subset(mydata,mydata$a_age>=16 & mydata$a_age<=22)
+
 ##Any insurance
 full <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
            factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
-summary(full)
+cl(full.sub,full,full.sub$a_age)
 ##Public insurance
 public <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
              factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
-summary(public)
+cl(full.sub,public,full.sub$a_age)
 ##Private insurance
 private <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
              factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
-summary(private)
+cl(wparents.sub,private,wparents.sub$a_age)
 
 
 ####Sample with parents 
+
+wparents.sub<-subset(mydata,mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0)
+
 ##Any insurance
 full.parent <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
              factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
              a_parent>0)
-summary(full.parent)
+cl(wparents.sub,full.parent,wparents.sub$a_age)
 ##Public insurance
 public.parent <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                  a_parent>0)
-summary(public.parent)
+cl(wparents.sub,public.parent,wparents.sub$a_age)
 ##Private insurance
 private.parent <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                 factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                   a_parent>0)
-summary(private.parent)
+cl(wparents.sub,private.parent,wparents.sub$a_age)
 
 ####By income
 ###<150 FPL
+
+fpl150.sub<-subset(mydata,mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & mydata$pov==1.5)
+
 ##Any insurance
 full.150 <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                     factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                     a_parent>0&mydata$pov==1.5)
-summary(full.150)
+cl(fpl150.sub,full.150,fpl150.sub$a_age)
 ##Public insurance
 public.150 <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                       factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                       a_parent>0&mydata$pov==1.5)
-summary(public.150)
+cl(fpl150.sub,public.150,fpl150.sub$a_age)
 ##Private insurance
 private.150 <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                        factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                        a_parent>0&mydata$pov==1.5)
-summary(private.150)
+cl(fpl150.sub,private.150,fpl150.sub$a_age)
 
 ####By income
 ###150-300 FPL
+
+fpl300.sub<-subset(mydata,mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & mydata$pov==3)
+
 ##Any insurance
 full.300 <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                  factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                  a_parent>0&mydata$pov==3)
-summary(full.300)
+cl(fpl300.sub,full.300,fpl300.sub$a_age)
 ##Public insurance
 public.300 <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                    factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                    a_parent>0&mydata$pov==3)
-summary(public.300)
+cl(fpl300.sub,public.300,fpl300.sub$a_age)
 ##Private insurance
 private.300 <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                     factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                     a_parent>0&mydata$pov==3)
-summary(private.300)
+cl(fpl300.sub,private.300,fpl300.sub$a_age)
 
 ####By income
 ###>300 FPL
+
+fpl400.sub<-subset(mydata,mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & mydata$pov==4)
+
 ##Any insurance
 full.high <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                  factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                  a_parent>0&mydata$pov==4)
-summary(full.high)
+cl(fpl400.sub,full.high,fpl400.sub$a_age)
 ##Public insurance
 public.high <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                    factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                    a_parent>0&mydata$pov==4)
-summary(public.high)
+cl(fpl400.sub,public.high,fpl400.sub$a_age)
 ##Private insurance
 private.high <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
                     factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
                     a_parent>0&mydata$pov==4)
-summary(private.high)
+cl(fpl400.sub,private.high,fpl400.sub$a_age)
