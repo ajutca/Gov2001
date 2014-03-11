@@ -56,10 +56,88 @@ colMeans(subset(mydata.nongroup, select = c("insured", "pubhi","privhi","pub_ng"
 ##Table 3 of the paper##########
 ################################
 
-####Full Sample
-
+####Full Sample 
 ##Any insurance
-
+full <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+           factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
+summary(full)
 ##Public insurance
-
+public <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+             factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
+summary(public)
 ##Private insurance
+private <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+             factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
+summary(private)
+
+
+####Sample with parents 
+##Any insurance
+full.parent <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+             factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+             a_parent>0)
+summary(full.parent)
+##Public insurance
+public.parent <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+               factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                 a_parent>0)
+summary(public.parent)
+##Private insurance
+private.parent <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                  a_parent>0)
+summary(private.parent)
+
+####By income
+###<150 FPL
+##Any insurance
+full.150 <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                    factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                    a_parent>0&mydata$pov==1.5)
+summary(full.150)
+##Public insurance
+public.150 <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                      factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                      a_parent>0&mydata$pov==1.5)
+summary(public.150)
+##Private insurance
+private.150 <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                       factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                       a_parent>0&mydata$pov==1.5)
+summary(private.150)
+
+####By income
+###150-300 FPL
+##Any insurance
+full.300 <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                 factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                 a_parent>0&mydata$pov==3)
+summary(full.300)
+##Public insurance
+public.300 <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                   factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                   a_parent>0&mydata$pov==3)
+summary(public.300)
+##Private insurance
+private.300 <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                    factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                    a_parent>0&mydata$pov==3)
+summary(private.300)
+
+####By income
+###>300 FPL
+##Any insurance
+full.high <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                 factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                 a_parent>0&mydata$pov==4)
+summary(full.high)
+##Public insurance
+public.high <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                   factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                   a_parent>0&mydata$pov==4)
+summary(public.high)
+##Private insurance
+private.high <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                    factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                    a_parent>0&mydata$pov==4)
+summary(private.high)
