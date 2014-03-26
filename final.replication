@@ -536,4 +536,8 @@ sum.impact.ddd
 rbind(sum.impact.ddd["factor(eligible)1:law",1],sum.impact.ddd["factor(eligible)1:law",2])
 rbind(sum.elig.impact.dd[2,1],sum.elig.impact.dd[2,2])
 rbind(sum.full.impact.dd[2,1],sum.full.impact.dd[2,2])
-TABLE7<-cbind(rbind(sum.full.impact.dd[2,1],sum.full.impact.dd[2,2]), rbind(sum.elig.impact.dd[2,1],sum.elig.impact.dd[2,2]), rbind(sum.impact.ddd["factor(eligible)1:law",1],sum.impact.ddd["factor(eligible)1:law",2]) )
+TABLE7<-cbind(rbind(sum.full.impact.dd[2,1],sum.full.impact.dd[2,2]), 
+              rbind(sum.elig.impact.dd[2,1],sum.elig.impact.dd[2,2]), 
+              rbind(sum.impact.ddd["factor(eligible)1:law",1],sum.impact.ddd["factor(eligible)1:law",2]) )
+              
+              ##Need to reform some of the code to align more closely with tables
