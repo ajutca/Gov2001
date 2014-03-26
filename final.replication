@@ -1,0 +1,539 @@
+###Replication code for Levine, Phillip B., Robin McKnight, and Samantha Heep. 2011. 
+###"How Effective Are Public Policies to Increase Health Insurance Coverage among Young Adults?" 
+###American Economic Journal: Economic Policy, 3(1): 129-56. https://www.aeaweb.org/articles.php?doi=10.1257/pol.3.1.129
+
+###Aaron Pervin and Alex Jutca
+###Gov 2001
+###3/10/2014
+
+# initial steps
+rm(list=ls())
+#setwd("C:/Users/ajutca/Documents/HKS/Gov2001")
+setwd("C:/Users/ajutca/")
+# setwd("C:/Users/apervin/Desktop")
+#setwd("/Users/SMorganstern/Dropbox/Adv Quant/Replication/")
+# input Stata file
+library(foreign)
+#mydata <- read.dta("C:/Users/ajutca/Documents/HKS/Gov2001/Replication/maindata.dta")
+mydata <- read.dta("C:/Users/ajutca/Downloads/maindata.dta")
+# mydata <- read.dta("C:/Users/apervin/Desktop/maindata.dta")
+#mydata <- read.dta("/Users/SMorganstern/Dropbox/Adv Quant/Replication/maindata.dta")
+
+colnames(mydata, do.NULL = TRUE) #So we can call columns by name
+
+##############################
+##Summary Statistics##########
+##############################
+
+
+##Full Sample
+mydata.sub<-subset(mydata,mydata$year<1997 & mydata$a_age>=16 & mydata$a_age<=22)
+colMeans(subset(mydata.sub, select = c("insured", "pubhi","privhi","pub_ng", "privonly", "group", "nongroup")), na.rm = TRUE)
+# insured     pubhi    privhi    pub_ng  privonly     group  nongroup 
+# 0.7608105 0.1329572 0.6565786 0.2574122 0.6278533 0.5028725 0.1317261 
+nrow(mydata.sub)
+
+##Full sample w/ parents
+mydata.parents<-subset(mydata,mydata$year<1997 & mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0)
+colMeans(subset(mydata.parents, select = c("insured", "pubhi","privhi","pub_ng", "privonly", "group", "nongroup")), na.rm = TRUE)
+# insured     pubhi    privhi    pub_ng  privonly     group  nongroup 
+# 0.8182844 0.1185155 0.7293846 0.2277706 0.6997689 0.5952763 0.1157815 
+
+
+##Income <= 150% of poverty line
+mydata.pov150<-subset(mydata,mydata$year<1997 & mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & pov==1.5)
+colMeans(subset(mydata.pov150, select = c("insured", "pubhi","privhi","pub_ng", "privonly", "group", "nongroup")), na.rm = TRUE)
+# insured     pubhi    privhi    pub_ng  privonly     group  nongroup 
+# 0.6385411 0.3794024 0.3039559 0.4636121 0.2591387 0.1841930 0.1016525 
+
+
+##Income 150% - 300% of poverty line
+mydata.pov300<-subset(mydata,mydata$year<1997 & mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & pov==3)
+colMeans(subset(mydata.pov300, select = c("insured", "pubhi","privhi","pub_ng", "privonly", "group", "nongroup")), na.rm = TRUE)
+# insured      pubhi     privhi     pub_ng   privonly      group   nongroup 
+# 0.80577403 0.07793017 0.76448302 0.19930942 0.72784385 0.61389795 0.12718204 
+
+##Income > 300% of poverty line
+mydata.pov400<-subset(mydata,mydata$year<1997 & mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & pov==4)
+colMeans(subset(mydata.pov400, select = c("insured", "pubhi","privhi","pub_ng", "privonly", "group", "nongroup")), na.rm = TRUE)
+# insured      pubhi     privhi     pub_ng   privonly      group   nongroup 
+# 0.91948531 0.02296827 0.91236012 0.13420512 0.89651704 0.78544784 0.11291337 
+
+##Group coverage
+mydata.group<-subset(mydata,mydata$year<1997 & mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & grouphi_any==1)
+colMeans(subset(mydata.group, select = c("insured", "pubhi","privhi","pub_ng", "privonly", "group", "nongroup")), na.rm = TRUE)
+# insured      pubhi     privhi     pub_ng   privonly      group   nongroup 
+# 0.92439680 0.04493613 0.91000101 0.11179542 0.87946067 0.83619728 0.06876014 
+
+
+
+##Non-group coverage
+mydata.nongroup<-subset(mydata,mydata$year<1997 & mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & grouphi_any==0)
+colMeans(subset(mydata.nongroup, select = c("insured", "pubhi","privhi","pub_ng", "privonly", "group", "nongroup")), na.rm = TRUE)
+# insured      pubhi     privhi     pub_ng   privonly      group   nongroup 
+# 0.57539015 0.28694088 0.31594825 0.49324128 0.28844927 0.04380113 0.22341475 
+
+
+
+################################
+##Table 3 of the paper##########
+################################
+
+##First, code clustered s.e.'s
+#######################
+###Clustered S.E.'s###
+#######################
+
+
+
+cl   <- function(dat,fm, cluster){
+  require(sandwich, quietly = TRUE)
+  require(lmtest, quietly = TRUE)
+  M <- length(unique(cluster))
+  N <- length(cluster)
+  K <- fm$rank
+  dfc <- (M/(M-1))*((N-1)/(N-K))
+  uj  <- apply(estfun(fm),2, function(x) tapply(x, cluster, sum));
+  vcovCL <- dfc*sandwich(fm, meat=crossprod(uj)/N)
+  coeftest(fm, vcovCL) }
+require(foreign)
+
+########################
+####Regressions#########
+########################
+
+####Full Sample 
+
+full.sub <-subset(mydata,mydata$a_age>=16 & mydata$a_age<=22)
+
+##Any insurance
+full <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+           factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
+sum.full <- cl(full.sub,full,full.sub$a_age)
+sum.full
+##Public insurance
+public <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+             factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
+sum.public <- cl(full.sub,public,full.sub$a_age)
+sum.public
+##Private insurance
+private <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+             factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
+sum.private <-cl(full.sub,private,full.sub$a_age)
+
+####Sample with parents 
+  
+wparents.sub<-subset(mydata,mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0)
+
+##Any insurance
+full.parent <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+             factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+             a_parent>0)
+sum.full.parent <- cl(wparents.sub,full.parent,wparents.sub$a_age)
+##Public insurance
+public.parent <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+               factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                 a_parent>0)
+sum.public.parent <-cl(wparents.sub,public.parent,wparents.sub$a_age)
+##Private insurance
+private.parent <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                  a_parent>0)
+sum.private.parent <-cl(wparents.sub,private.parent,wparents.sub$a_age)
+
+####By income
+###<150 FPL
+
+fpl150.sub<-subset(mydata,mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & mydata$pov==1.5)
+
+##Any insurance
+full.150 <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                    factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                    a_parent>0&mydata$pov==1.5)
+sum.full.150 <-cl(fpl150.sub,full.150,fpl150.sub$a_age)
+##Public insurance
+public.150 <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                      factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                      a_parent>0&mydata$pov==1.5)
+sum.public.150 <-cl(fpl150.sub,public.150,fpl150.sub$a_age)
+##Private insurance
+private.150 <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                       factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                       a_parent>0&mydata$pov==1.5)
+sum.private.150 <-cl(fpl150.sub,private.150,fpl150.sub$a_age)
+
+####By income
+###150-300 FPL
+
+fpl300.sub<-subset(mydata,mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & mydata$pov==3)
+
+##Any insurance
+full.300 <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                 factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                 a_parent>0&mydata$pov==3)
+sum.full.300 <- cl(fpl300.sub,full.300,fpl300.sub$a_age)
+##Public insurance
+public.300 <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                   factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                   a_parent>0&mydata$pov==3)
+sum.public.300 <-cl(fpl300.sub,public.300,fpl300.sub$a_age)
+##Private insurance
+private.300 <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                    factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                    a_parent>0&mydata$pov==3)
+sum.private.300 <-cl(fpl300.sub,private.300,fpl300.sub$a_age)
+
+
+####By income
+###>300 FPL
+
+fpl400.sub<-subset(mydata,mydata$a_age>=16 & mydata$a_age<=22 & a_parent>0 & mydata$pov==4)
+
+##Any insurance
+full.high <- lm(insured ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                 factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                 a_parent>0&mydata$pov==4)
+sum.full.high <- cl(fpl400.sub,full.high,fpl400.sub$a_age)
+##Public insurance
+public.high <- lm(pubhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                   factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                   a_parent>0&mydata$pov==4)
+sum.public.high <-cl(fpl400.sub,public.high,fpl400.sub$a_age)
+##Private insurance
+private.high <- lm(privhi ~ elig_schip+ur+povratio+povratio2+withparent+married+student+female+ 
+                    factor(stfips)+factor(year)+factor(a_age),data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22&
+                    a_parent>0&mydata$pov==4)
+sum.private.high <-cl(fpl400.sub,private.high,fpl400.sub$a_age)
+
+
+##Combine all the results for easy viewing of Table 3 coefficients and standard errors
+fpl400.coeffs<-cbind(sum.full.high[2,1:2],sum.public.high[2,1:2],sum.private.high[2,1:2])
+fpl300.coeffs<-cbind(sum.full.300[2,1:2],sum.public.300[2,1:2],sum.private.300[2,1:2])
+fpl150.coeffs<-cbind(sum.full.150[2,1:2],sum.public.150[2,1:2],sum.private.150[2,1:2])
+parent.coeffs<-cbind(sum.full.parent[2,1:2],sum.public.parent[2,1:2],sum.private.parent[2,1:2])
+full.coeffs<-cbind(sum.full[2,1:2],sum.public[2,1:2],sum.private[2,1:2])
+
+TABLE3<-rbind(full.coeffs,parent.coeffs,fpl150.coeffs,fpl300.coeffs,fpl400.coeffs)
+TABLE3
+################################
+##Table 4 of the paper##########
+################################
+
+### Any insurance coverage, Look at elig_XXXX coefficients and standard errors. 
+### Under main S-Chip regressions in the do file
+
+insured.schip <- lm(insured ~ 
+                      elig_9193+
+                      elig_9496+
+                      elig_9899+
+                      elig_0002+
+                      elig_0305+
+                      elig_0608+
+                      factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2 +withparent 
+                    +married +student +female,data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
+sum.insured.schip <- cl(full.sub,insured.schip,full.sub$a_age)
+sum.insured.schip
+
+### Public Coverage
+
+pubhi.schip <- lm(pubhi ~ 
+                      elig_9193+
+                      elig_9496+
+                      elig_9899+
+                      elig_0002+
+                      elig_0305+
+                      elig_0608+
+                      factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2 +withparent 
+                    +married +student +female,data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
+sum.pubhi.schip <- cl(full.sub,pubhi.schip,full.sub$a_age)
+sum.pubhi.schip
+
+### Private Coverage
+
+privhi.schip <- lm(privhi ~ 
+                      elig_9193+
+                      elig_9496+
+                      elig_9899+
+                      elig_0002+
+                      elig_0305+
+                      elig_0608+
+                      factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2 +withparent 
+                    +married +student +female,data=mydata, subset=mydata$a_age>=16&mydata$a_age<=22)
+sum.privhi.schip <- cl(full.sub,privhi.schip,full.sub$a_age)
+sum.privhi.schip
+
+#Bind everything into one big table 4
+
+TABLE4<-cbind(sum.insured.schip[2:7,1:2],sum.pubhi.schip[2:7,1:2],sum.privhi.schip[2:7,1:2])
+TABLE4
+
+################################
+##Table 5 of the paper##########
+################################
+
+install.packages("survey")
+library(survey)
+
+### Under *Parental Extended Coverage - MAIN RESULTS;
+
+#### Panel A: Full Sample
+
+## Means- Under "*Means; *Parental Extended Coverage;" in do file
+
+# Panel A: Full Sample
+mydata.sub <-subset(mydata,mydata$year>=2000 & mydata$year<2003 & mydata$a_age>=19 & mydata$a_age<=24)
+insured.mean.a <- colMeans(subset(mydata.sub, select= c("insured")), na.rm=TRUE)
+insured.mean.a
+
+# Panel A: Eligible Sample
+mydata.sub <-subset(mydata,mydata$year>=2000 & mydata$year<2003 & mydata$a_age>=19 & mydata$a_age<=24 & mydata$eligible==1)
+eligible.mean.a <- colMeans(subset(mydata.sub, select= c("insured")), na.rm=TRUE)
+eligible.mean.a
+
+## Full Sample
+# Generate new subset
+full.sub.2000 <-subset(mydata,mydata$a_age>=19 & mydata$a_age<=24&year>=2000)
+
+# insured
+ins.full <- lm(insured ~ law +
+                     factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+                   +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000)
+sum.ins.full <- cl(full.sub.2000,ins.full,full.sub.2000$stfips)
+sum.ins.full
+# public insurance
+public.full <- lm(pubhi ~ law +
+                 factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+               +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000)
+sum.public.full <- cl(full.sub.2000,public.full,full.sub.2000$stfips)
+sum.public.full
+
+# private insurance
+private.full <- lm(privhi ~ law +
+                    factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+                  +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000)
+sum.private.full <- cl(full.sub.2000,private.full,full.sub.2000$stfips)
+sum.private.full
+
+
+      
+      
+      
+## DD Eligible Sample
+# Generate new subset
+elig.sub.2000 <-subset(mydata,mydata$a_age>=19 & mydata$a_age<=24& mydata$year>=2000 &mydata$eligible==1)
+
+# insured
+ins.elig <- lm(insured ~ law +
+                 factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+               +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000&mydata$eligible==1)
+sum.ins.elig <- cl(elig.sub.2000,ins.elig,elig.sub.2000$stfips)
+sum.ins.elig
+
+# public insurance
+public.elig <- lm(pubhi ~ law +
+                 factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+               +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000&mydata$eligible==1)
+sum.public.elig <- cl(elig.sub.2000,public.elig,elig.sub.2000$stfips)
+sum.public.elig
+
+# private insurance
+priv.elig <- lm(privhi ~ law +
+                 factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+               +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000&mydata$eligible==1)
+sum.priv.elig <- cl(elig.sub.2000,priv.elig,elig.sub.2000$stfips)
+sum.priv.elig
+
+## DDD full sample
+
+# insured
+ins.ddd <- lm(insured~factor(eligible)*law+factor(eligible)*factor(stfips)+factor(eligible)*factor(year) 
+   +factor(eligible)*factor(a_age) +factor(eligible)*married +factor(eligible)*student +factor(eligible)*female 
+   +factor(eligible)*ur +factor(eligible)*povratio +factor(eligible)*povratio2, 
+   data=mydata,
+   subset=mydata$a_age>=19 & mydata$a_age<=24  & mydata$year>=2000)
+sum.ins.ddd <- cl(full.sub.2000,ins.ddd,full.sub.2000$stfips)
+# Parameter name is: factor(eligible)1:law
+sum.ins.ddd
+
+# public insurance
+pub.ddd <- lm(pubhi~factor(eligible)*law+factor(eligible)*factor(stfips)+factor(eligible)*factor(year) 
+              +factor(eligible)*factor(a_age) +factor(eligible)*married +factor(eligible)*student +factor(eligible)*female 
+              +factor(eligible)*ur +factor(eligible)*povratio +factor(eligible)*povratio2, 
+              data=mydata,
+              subset=mydata$a_age>=19 & mydata$a_age<=24  & mydata$year>=2000)
+sum.pub.ddd <- cl(full.sub.2000,pub.ddd,full.sub.2000$stfips)
+# Parameter name is: factor(eligible)1:law
+sum.pub.ddd
+
+# private insurance
+priv.ddd <- lm(privhi~factor(eligible)*law+factor(eligible)*factor(stfips)+factor(eligible)*factor(year) 
+              +factor(eligible)*factor(a_age) +factor(eligible)*married +factor(eligible)*student +factor(eligible)*female 
+              +factor(eligible)*ur +factor(eligible)*povratio +factor(eligible)*povratio2, 
+              data=mydata,
+              subset=mydata$a_age>=19 & mydata$a_age<=24  & mydata$year>=2000)
+sum.priv.ddd <- cl(full.sub.2000,priv.ddd,full.sub.2000$stfips)
+# Parameter name is: factor(eligible)1:law
+sum.priv.ddd
+sum.priv.ddd["factor(eligible)1:law",1:2]
+cbind(rbind(sum.ins.full[2,1], sum.ins.full[2,2]),rbind(sum.public.full[2,1], sum.public.full[2,2]),rbind(sum.private.full[2,1], sum.private.full[2,2])
+      
+#PANEL A RESULTS
+TABLE5.A<-rbind(cbind(rbind(sum.ins.full[2,1], sum.ins.full[2,2]),rbind(sum.public.full[2,1], sum.public.full[2,2]),rbind(sum.private.full[2,1], sum.private.full[2,2]),
+                cbind(rbind(sum.ins.elig[2,1], sum.ins.elig[2,2]),rbind(sum.public.elig[2,1], sum.public.elig[2,2]),rbind(sum.priv.elig[2,1], sum.priv.elig[2,2]),
+                cbind(rbind(sum.ins.ddd["factor(eligible)1:law",1], sum.ins.ddd["factor(eligible)1:law",2]),rbind(sum.pub.ddd["factor(eligible)1:law",1], sum.pub.ddd["factor(eligible)1:law",2]),rbind(sum.priv.ddd["factor(eligible)1:law",1], sum.priv.ddd["factor(eligible)1:law",2])))))
+
+
+#### Panel B: Non-Students Sample
+
+#### Panel B: Full Sample
+ 
+## Means- Under "*Means; *Parental Extended Coverage;" in do file
+
+
+## Means
+# Panel B: Full Sample
+mydata.sub <-subset(mydata,mydata$year>=2000 & mydata$year<2003 & mydata$a_age>=19 & mydata$a_age<=24 & mydata$student==0)
+insured.mean.b <- colMeans(subset(mydata.sub, select= c("insured")), na.rm=TRUE)
+insured.mean.b
+
+
+# Panel B: Eligible Sample
+mydata.sub <-subset(mydata,mydata$year>=2000 & mydata$year<2003 & mydata$a_age>=19 & mydata$a_age<=24 & mydata$eligible==1 & mydata$student==0)
+eligible.mean.b <- colMeans(subset(mydata.sub, select= c("insured")), na.rm=TRUE)
+eligible.mean.b
+
+ 
+## Full Sample
+# Generate new subset
+nostu.full.sub.2000 <-subset(mydata,mydata$a_age>=19 & mydata$a_age<=24&year>=2000&mydata$student==0)
+ 
+# insured
+nostu.ins.full <- lm(insured ~ law +
+                  factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+                +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000&mydata$student==0)
+sum.nostu.ins.full <- cl(nostu.full.sub.2000,nostu.ins.full,nostu.full.sub.2000$stfips)
+sum.nostu.ins.full
+ 
+# public insurance
+nostu.pub.full <- lm(pubhi ~ law +
+                       factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+                     +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000&mydata$student==0)
+sum.nostu.pub.full <- cl(nostu.full.sub.2000,nostu.pub.full,nostu.full.sub.2000$stfips)
+sum.nostu.pub.full
+ 
+# private insurance
+nostu.priv.full <- lm(privhi ~ law +
+                       factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+                     +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000&mydata$student==0)
+sum.nostu.priv.full <- cl(nostu.full.sub.2000,nostu.priv.full,nostu.full.sub.2000$stfips)
+sum.nostu.priv.full
+
+## DD Eligible Sample
+# Generate new subset
+nostu.elig.sub.2000 <- subset(
+  mydata,mydata$a_age>=19 & mydata$a_age<=24& mydata$year>=2000 &mydata$eligible==1&mydata$student==0)
+
+# insured
+nostu.ins.elig <- lm(insured ~ law +
+                 factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+               +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000&mydata$eligible==1
+               &mydata$student==0)
+sum.nostu.ins.elig <- cl(nostu.elig.sub.2000,nostu.ins.elig,nostu.elig.sub.2000$stfips)
+sum.nostu.ins.elig
+ 
+# public insurance
+nostu.pub.elig <- lm(pubhi ~ law +
+                    factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+                    +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000&mydata$eligible==1&mydata$student==0)
+sum.nostu.pub.elig <- cl(nostu.elig.sub.2000,nostu.pub.elig,nostu.elig.sub.2000$stfips)
+sum.nostu.pub.elig
+
+# private insurance
+nostu.priv.elig <- lm(privhi ~ law +
+                       factor(stfips)+ factor(year)+ factor(a_age) +ur+ povratio +povratio2  
+                     +married +student +female,data=mydata, subset=mydata$a_age>=19&mydata$a_age<=24&year>=2000&mydata$eligible==1&mydata$student==0)
+sum.nostu.priv.elig <- cl(nostu.elig.sub.2000,nostu.priv.elig,nostu.elig.sub.2000$stfips)
+sum.nostu.priv.elig
+
+## DDD full sample
+ 
+# insured
+nostu.ins.ddd <- lm(insured~factor(eligible)*law+factor(eligible)*factor(stfips)+factor(eligible)*factor(year) 
+              +factor(eligible)*factor(a_age) +factor(eligible)*married +factor(eligible)*student +factor(eligible)*female 
+              +factor(eligible)*ur +factor(eligible)*povratio +factor(eligible)*povratio2, 
+              data=mydata,
+              subset=mydata$a_age>=19 & mydata$a_age<=24  & mydata$year>=2000&mydata$student==0)
+sum.nostu.ins.ddd <- cl(nostu.full.sub.2000,nostu.ins.ddd,nostu.full.sub.2000$stfips)
+# Parameter name is: factor(eligible)1:law
+sum.nostu.ins.ddd
+
+# public insurance
+nostu.pub.ddd <- lm(pubhi~factor(eligible)*law+factor(eligible)*factor(stfips)+factor(eligible)*factor(year) 
+                    +factor(eligible)*factor(a_age) +factor(eligible)*married +factor(eligible)*student +factor(eligible)*female 
+                    +factor(eligible)*ur +factor(eligible)*povratio +factor(eligible)*povratio2, 
+                    data=mydata,
+                    subset=mydata$a_age>=19 & mydata$a_age<=24  & mydata$year>=2000&mydata$student==0)
+sum.nostu.pub.ddd <- cl(nostu.full.sub.2000,nostu.pub.ddd,nostu.full.sub.2000$stfips)
+# Parameter name is: factor(eligible)1:law
+sum.nostu.pub.ddd
+
+# private insurance
+nostu.priv.ddd <- lm(privhi~factor(eligible)*law+factor(eligible)*factor(stfips)+factor(eligible)*factor(year) 
+                    +factor(eligible)*factor(a_age) +factor(eligible)*married +factor(eligible)*student +factor(eligible)*female 
+                    +factor(eligible)*ur +factor(eligible)*povratio +factor(eligible)*povratio2, 
+                    data=mydata,
+                    subset=mydata$a_age>=19 & mydata$a_age<=24  & mydata$year>=2000&mydata$student==0)
+sum.nostu.priv.ddd <- cl(nostu.full.sub.2000,nostu.priv.ddd,nostu.full.sub.2000$stfips)
+# Parameter name is: factor(eligible)1:law
+sum.nostu.priv.ddd
+
+
+TABLE5.B<-rbind(cbind(rbind(sum.nostu.ins.full[2,1], sum.nostu.ins.full[2,2]),rbind(sum.nostu.pub.full[2,1], sum.nostu.pub.full[2,2]),rbind(sum.nostu.priv.full[2,1], sum.nostu.priv.full[2,2]),
+                      cbind(rbind(sum.nostu.ins.elig[2,1], sum.nostu.ins.elig[2,2]),rbind(sum.nostu.pub.elig[2,1], sum.nostu.pub.elig[2,2]),rbind(sum.nostu.priv.elig[2,1], sum.nostu.priv.elig[2,2]),
+                      cbind(rbind(sum.nostu.ins.ddd["factor(eligible)1:law",1], sum.nostu.ins.ddd["factor(eligible)1:law",2]),rbind(sum.nostu.pub.ddd["factor(eligible)1:law",1], sum.nostu.pub.ddd["factor(eligible)1:law",2]),rbind(sum.nostu.priv.ddd["factor(eligible)1:law",1], sum.nostu.priv.ddd["factor(eligible)1:law",2])))))
+TABLE5.B
+################################
+##Table 6 of the paper##########
+################################
+
+#Not clear if we're going to include this; seems uninteresting
+
+################################
+##Table 7 of the paper##########
+################################
+
+#### From Stata regressions, Sample Selection?
+
+## D in D, Full Sample
+full.impact.dd <- lm(withparent~
+                       law +factor(stfips) +factor(year) +factor(a_age) +married +student +female +ur +povratio +povratio2,
+   data=mydata,
+   subset=mydata$a_age>=19 & mydata$a_age<=24&year>=2000)
+sum.full.impact.dd <- cl(full.sub.2000,full.impact.dd,full.sub.2000$stfips)
+sum.full.impact.dd
+
+elig.sub.2000 <-subset(mydata,mydata$a_age>=19 & mydata$a_age<=24& mydata$year>=2000 &mydata$eligible==1)
+
+## D in D, Eligible Sample
+elig.impact.dd <- lm(withparent~
+                       law +factor(stfips) +factor(year) +factor(a_age) +married +student +female +ur +povratio +povratio2,
+                     data=mydata,
+                     subset=mydata$a_age>=19 & mydata$a_age<=24&year>=2000&mydata$eligible==1)
+sum.elig.impact.dd <- cl(elig.sub.2000,elig.impact.dd,elig.sub.2000$stfips)
+sum.elig.impact.dd
+
+## D in D in D, Full Sample
+impact.ddd <- lm(withparent~factor(eligible)*law+factor(eligible)*factor(stfips)+factor(eligible)*factor(year) 
+              +factor(eligible)*factor(a_age) +factor(eligible)*married +factor(eligible)*student +factor(eligible)*female 
+              +factor(eligible)*ur +factor(eligible)*povratio +factor(eligible)*povratio2, 
+              data=mydata,
+              subset=mydata$a_age>=19 & mydata$a_age<=24  & mydata$year>=2000)
+sum.impact.ddd <- cl(full.sub.2000,impact.ddd,full.sub.2000$stfips)
+# Parameter name is: factor(eligible)1:law
+sum.impact.ddd
+
+
+rbind(sum.impact.ddd["factor(eligible)1:law",1],sum.impact.ddd["factor(eligible)1:law",2])
+rbind(sum.elig.impact.dd[2,1],sum.elig.impact.dd[2,2])
+rbind(sum.full.impact.dd[2,1],sum.full.impact.dd[2,2])
+TABLE7<-cbind(rbind(sum.full.impact.dd[2,1],sum.full.impact.dd[2,2]), rbind(sum.elig.impact.dd[2,1],sum.elig.impact.dd[2,2]), rbind(sum.impact.ddd["factor(eligible)1:law",1],sum.impact.ddd["factor(eligible)1:law",2]) )
